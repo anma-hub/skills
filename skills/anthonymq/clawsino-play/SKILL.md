@@ -54,7 +54,7 @@ Run the script:
 - `python3 scripts/clawsino.py --base https://clawsino.anma-services.com --token "…" dice --amount 100 --mode under --threshold 49.5`
 - `python3 scripts/clawsino.py --base https://clawsino.anma-services.com --token "…" slots --amount 100`
 - Device onboarding:
-  - `python3 scripts/clawsino.py device-start --client-name openclaw`
+  - `python3 scripts/clawsino.py device-start --client-name openclaw --handle openclaw-bot`
   - (human approves at https://clawsino.anma-services.com/device)
   - `python3 scripts/clawsino.py device-poll --device-code "…"`
 

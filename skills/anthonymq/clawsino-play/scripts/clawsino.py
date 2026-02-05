@@ -53,6 +53,7 @@ def main(argv: list[str]) -> int:
 
     devs = sub.add_parser("device-start")
     devs.add_argument("--client-name", default="openclaw")
+    devs.add_argument("--handle", default="openclaw-bot")
 
     devp = sub.add_parser("device-poll")
     devp.add_argument("--device-code", required=True)
@@ -81,8 +82,14 @@ def main(argv: list[str]) -> int:
         out = _req(args.base, f"/v1/leaderboard?limit={args.limit}", token=None)
     elif args.cmd == "device-start":
         # Generate a pseudo-identity public key (32 random bytes). This is enough to create a unique user.
-        pub = base64.b64encode(__import__('os').urandom(32)).decode('ascii')
-        out = _req(args.base, "/v1/device/start", token=None, method="POST", body={"publicKey": pub, "clientName": args.client_name})
+        pub = base64.b64encode(os.urandom(32)).decode('ascii')
+        out = _req(
+            args.base,
+            "/v1/device/start",
+            token=None,
+            method="POST",
+            body={"publicKey": pub, "clientName": args.client_name, "requestedHandle": args.handle},
+        )
         out["publicKey"] = pub
     elif args.cmd == "device-poll":
         out = _req(args.base, "/v1/device/poll", token=None, method="POST", body={"deviceCode": args.device_code})
