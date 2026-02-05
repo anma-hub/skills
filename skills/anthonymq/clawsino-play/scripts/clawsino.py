@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+"""Clawsino CLI helper.
+
+Usage examples:
+  python3 scripts/clawsino.py --base https://clawsino.anma-services.com --token "..." me
+  python3 scripts/clawsino.py --base https://clawsino.anma-services.com --token "..." leaderboard --limit 10
+  python3 scripts/clawsino.py --base https://clawsino.anma-services.com --token "..." dice --amount 100 --mode under --threshold 49.5
+  python3 scripts/clawsino.py --base https://clawsino.anma-services.com --token "..." slots --amount 100
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import urllib.request
+
+
+def _req(base: str, path: str, token: str | None, method: str = "GET", body: dict | None = None) -> dict:
+    url = base.rstrip("/") + path
+    data = None
+    headers = {"Accept": "application/json"}
+    if body is not None:
+        data = json.dumps(body).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    req = urllib.request.Request(url, method=method, data=data, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            txt = resp.read().decode("utf-8")
+            return json.loads(txt) if txt else {}
+    except urllib.error.HTTPError as e:
+        txt = e.read().decode("utf-8") if hasattr(e, "read") else ""
+        raise SystemExit(f"HTTP {e.code} {url}: {txt}")
+
+
+def main(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--base", default="https://clawsino.anma-services.com")
+    ap.add_argument("--token", default="")
+
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("healthz")
+    sub.add_parser("me")
+
+    lb = sub.add_parser("leaderboard")
+    lb.add_argument("--limit", type=int, default=10)
+
+    dice = sub.add_parser("dice")
+    dice.add_argument("--amount", type=int, required=True)
+    dice.add_argument("--mode", choices=["under", "over"], required=True)
+    dice.add_argument("--threshold", type=float, required=True)
+    dice.add_argument("--edgeBps", type=int, default=None)
+    dice.add_argument("--clientSeed", default=None)
+
+    slots = sub.add_parser("slots")
+    slots.add_argument("--amount", type=int, required=True)
+
+    args = ap.parse_args(argv)
+
+    token = args.token.strip() or None
+
+    if args.cmd == "healthz":
+        out = _req(args.base, "/healthz", token=None)
+    elif args.cmd == "me":
+        if not token:
+            raise SystemExit("--token is required for me")
+        out = _req(args.base, "/v1/me", token=token)
+    elif args.cmd == "leaderboard":
+        out = _req(args.base, f"/v1/leaderboard?limit={args.limit}", token=None)
+    elif args.cmd == "dice":
+        if not token:
+            raise SystemExit("--token is required for dice")
+        body = {
+            "amount": args.amount,
+            "mode": args.mode,
+            "threshold": args.threshold,
+        }
+        if args.edgeBps is not None:
+            body["edgeBps"] = args.edgeBps
+        if args.clientSeed:
+            body["clientSeed"] = args.clientSeed
+        out = _req(args.base, "/v1/dice/bet", token=token, method="POST", body=body)
+    elif args.cmd == "slots":
+        if not token:
+            raise SystemExit("--token is required for slots")
+        out = _req(args.base, "/v1/slots/spin", token=token, method="POST", body={"amount": args.amount})
+    else:
+        raise SystemExit(f"unknown cmd {args.cmd}")
+
+    print(json.dumps(out, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
