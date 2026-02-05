@@ -113,6 +113,15 @@ def main(argv: list[str]) -> int:
     else:
         raise SystemExit(f"unknown cmd {args.cmd}")
 
+    # Convenience: show handle on every command when a token is provided.
+    if token and args.cmd not in ("me", "device-poll"):
+        try:
+            me = _req(args.base, "/v1/me", token=token)
+            if isinstance(me, dict) and me.get("handle"):
+                out = {"as": me.get("handle"), **out}
+        except Exception:
+            pass
+
     print(json.dumps(out, indent=2, sort_keys=True))
     return 0
 
